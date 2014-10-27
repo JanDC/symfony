@@ -37,7 +37,7 @@ class CodeHelper extends Helper
      */
     public function __construct($fileLinkFormat, $rootDir, $charset)
     {
-        $this->fileLinkFormat = empty($fileLinkFormat) ? ini_get('xdebug.file_link_format') : $fileLinkFormat;
+        $this->fileLinkFormat = $fileLinkFormat ?: ini_get('xdebug.file_link_format') ?: get_cfg_var('xdebug.file_link_format');
         $this->rootDir = str_replace('\\', '/', $rootDir).'/';
         $this->charset = $charset;
     }
@@ -93,7 +93,7 @@ class CodeHelper extends Helper
                 $formattedValue = sprintf("<em>object</em>(<abbr title=\"%s\">%s</abbr>)", $item[1], $short);
             } elseif ('array' === $item[0]) {
                 $formattedValue = sprintf("<em>array</em>(%s)", is_array($item[1]) ? $this->formatArgs($item[1]) : $item[1]);
-            } elseif ('string'  === $item[0]) {
+            } elseif ('string' === $item[0]) {
                 $formattedValue = sprintf("'%s'", htmlspecialchars($item[1], ENT_QUOTES, $this->getCharset()));
             } elseif ('null' === $item[0]) {
                 $formattedValue = '<em>null</em>';

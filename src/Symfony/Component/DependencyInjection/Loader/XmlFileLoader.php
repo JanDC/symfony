@@ -167,6 +167,21 @@ class XmlFileLoader extends FileLoader
         $definition->setArguments($this->getArgumentsAsPhp($service, 'argument'));
         $definition->setProperties($this->getArgumentsAsPhp($service, 'property'));
 
+        if ($factories = $this->getChildren($service, 'factory')) {
+            $factory = $factories[0];
+            if ($function = $factory->getAttribute('function')) {
+                $definition->setFactory($function);
+            } else {
+                if ($childService = $factory->getAttribute('service')) {
+                    $class = new Reference($childService, ContainerInterface::EXCEPTION_ON_INVALID_REFERENCE, false);
+                } else {
+                    $class = $factory->getAttribute('class');
+                }
+
+                $definition->setFactory(array($class, $factory->getAttribute('method')));
+            }
+        }
+
         if ($configurators = $this->getChildren($service, 'configurator')) {
             $configurator = $configurators[0];
             if ($function = $configurator->getAttribute('function')) {
@@ -278,18 +293,20 @@ class XmlFileLoader extends FileLoader
         // resolve definitions
         krsort($definitions);
         foreach ($definitions as $id => $def) {
+            list($domElement, $file, $wild) = $def;
+
             // anonymous services are always private
-            $def[0]->setAttribute('public', false);
+            // we could not use the constant false here, because of XML parsing
+            $domElement->setAttribute('public', 'false');
 
-            $this->parseDefinition($id, $def[0], $def[1]);
+            $this->parseDefinition($id, $domElement, $file);
 
-            $oNode = $def[0];
-            if (true === $def[2]) {
-                $nNode = new \DOMElement('_services', null, self::NS);
-                $oNode->parentNode->replaceChild($nNode, $oNode);
-                $nNode->setAttribute('id', $id);
+            if (true === $wild) {
+                $tmpDomElement = new \DOMElement('_services', null, self::NS);
+                $domElement->parentNode->replaceChild($tmpDomElement, $domElement);
+                $tmpDomElement->setAttribute('id', $id);
             } else {
-                $oNode->parentNode->removeChild($oNode);
+                $domElement->parentNode->removeChild($domElement);
             }
         }
     }

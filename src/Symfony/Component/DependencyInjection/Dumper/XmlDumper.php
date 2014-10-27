@@ -120,6 +120,9 @@ class XmlDumper extends Dumper
         if ($definition->getFactoryMethod()) {
             $service->setAttribute('factory-method', $definition->getFactoryMethod());
         }
+        if ($definition->getFactoryClass()) {
+            $service->setAttribute('factory-class', $definition->getFactoryClass());
+        }
         if ($definition->getFactoryService()) {
             $service->setAttribute('factory-service', $definition->getFactoryService());
         }
@@ -172,6 +175,17 @@ class XmlDumper extends Dumper
         }
 
         $this->addMethodCalls($definition->getMethodCalls(), $service);
+
+        if ($callable = $definition->getFactory()) {
+            $factory = $this->document->createElement('factory');
+            if (is_array($callable)) {
+                $factory->setAttribute($callable[0] instanceof Reference ? 'service' : 'class', $callable[0]);
+                $factory->setAttribute('method', $callable[1]);
+            } else {
+                $factory->setAttribute('function', $callable);
+            }
+            $service->appendChild($factory);
+        }
 
         if ($callable = $definition->getConfigurator()) {
             $configurator = $this->document->createElement('configurator');

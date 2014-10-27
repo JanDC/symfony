@@ -14,10 +14,10 @@ namespace Symfony\Component\Translation\Tests;
 use Symfony\Component\Translation\Translator;
 use Symfony\Component\Translation\MessageSelector;
 use Symfony\Component\Translation\Loader\ArrayLoader;
+use Symfony\Component\Translation\MessageCatalogue;
 
 class TranslatorTest extends \PHPUnit_Framework_TestCase
 {
-
     /**
      * @dataProvider      getInvalidLocalesTests
      * @expectedException \InvalidArgumentException
@@ -75,6 +75,16 @@ class TranslatorTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($locale, $translator->getLocale());
     }
 
+    public function testGetCatalogue()
+    {
+        $translator = new Translator('en');
+
+        $this->assertEquals(new MessageCatalogue('en'), $translator->getCatalogue());
+
+        $translator->setLocale('fr');
+        $this->assertEquals(new MessageCatalogue('fr'), $translator->getCatalogue('fr'));
+    }
+
     public function testSetFallbackLocales()
     {
         $translator = new Translator('en');
@@ -102,7 +112,6 @@ class TranslatorTest extends \PHPUnit_Framework_TestCase
         $translator->setFallbackLocales(array('fr_FR', 'fr'));
         $this->assertEquals('bar (fr)', $translator->trans('bar'));
     }
-
 
     /**
      * @dataProvider      getInvalidLocalesTests
@@ -329,7 +338,6 @@ class TranslatorTest extends \PHPUnit_Framework_TestCase
         // no assertion. this method just asserts that no exception is thrown
     }
 
-
     public function getTransFileTests()
     {
         return array(
@@ -359,12 +367,12 @@ class TranslatorTest extends \PHPUnit_Framework_TestCase
         $messages = array(
             'symfony2' => array(
                 'is' => array(
-                    'great' => 'Symfony2 est super!'
-                )
+                    'great' => 'Symfony2 est super!',
+                ),
             ),
             'foo' => array(
                 'bar' => array(
-                    'baz' => 'Foo Bar Baz'
+                    'baz' => 'Foo Bar Baz',
                 ),
                 'baz' => 'Foo Baz',
             ),
@@ -430,6 +438,7 @@ class TranslatorTest extends \PHPUnit_Framework_TestCase
             array('fr_FR'),
             array('fr.FR'),
             array('fr-FR.UTF8'),
+            array('sr@latin'),
         );
     }
 
@@ -462,6 +471,120 @@ class TranslatorTest extends \PHPUnit_Framework_TestCase
         // consistent behavior with Translator::trans(), which returns the string
         // unchanged if it can't be found
         $this->assertEquals('some_message2', $translator->transChoice('some_message2', 10, array('%count%' => 10)));
+    }
+
+    /**
+     * @dataProvider dataProviderGetMessages
+     */
+    public function testGetMessages($resources, $locale, $expected)
+    {
+        $locales = array_keys($resources);
+        $_locale = !is_null($locale) ? $locale : reset($locales);
+        $locales = array_slice($locales, 0, array_search($_locale, $locales));
+
+        $translator = new Translator($_locale, new MessageSelector());
+        $translator->setFallbackLocales(array_reverse($locales));
+        $translator->addLoader('array', new ArrayLoader());
+        foreach ($resources as $_locale => $domainMessages) {
+            foreach ($domainMessages as $domain => $messages) {
+                $translator->addResource('array', $messages, $_locale, $domain);
+            }
+        }
+        $result = $translator->getMessages($locale);
+
+        $this->assertEquals($expected, $result);
+    }
+
+    public function dataProviderGetMessages()
+    {
+        $resources = array(
+            'en' => array(
+                'jsmessages' => array(
+                    'foo' => 'foo (EN)',
+                    'bar' => 'bar (EN)',
+                ),
+                'messages' => array(
+                    'foo' => 'foo messages (EN)',
+                ),
+                'validators' => array(
+                    'int' => 'integer (EN)',
+                ),
+            ),
+            'pt-PT' => array(
+                'messages' => array(
+                    'foo' => 'foo messages (PT)',
+                ),
+                'validators' => array(
+                    'str' => 'integer (PT)',
+                ),
+            ),
+            'pt_BR' => array(
+                'validators' => array(
+                    'int' => 'integer (BR)',
+                ),
+            ),
+        );
+
+        return array(
+            array($resources, null,
+                array(
+                    'jsmessages' => array(
+                        'foo' => 'foo (EN)',
+                        'bar' => 'bar (EN)',
+                    ),
+                    'messages' => array(
+                        'foo' => 'foo messages (EN)',
+                    ),
+                    'validators' => array(
+                        'int' => 'integer (EN)',
+                    ),
+                ),
+            ),
+            array($resources, 'en',
+                array(
+                    'jsmessages' => array(
+                        'foo' => 'foo (EN)',
+                        'bar' => 'bar (EN)',
+                    ),
+                    'messages' => array(
+                        'foo' => 'foo messages (EN)',
+                    ),
+                    'validators' => array(
+                        'int' => 'integer (EN)',
+                    ),
+                ),
+            ),
+            array($resources, 'pt-PT',
+                array(
+                    'jsmessages' => array(
+                        'foo' => 'foo (EN)',
+                        'bar' => 'bar (EN)',
+                    ),
+                    'messages' => array(
+                        'foo' => 'foo messages (PT)',
+                    ),
+                    'validators' => array(
+                        'int' => 'integer (EN)',
+                        'str' => 'integer (PT)',
+                    ),
+                ),
+            ),
+            array($resources, 'pt_BR',
+                array(
+                    'jsmessages' => array(
+                        'foo' => 'foo (EN)',
+                        'bar' => 'bar (EN)',
+                    ),
+                    'messages' => array(
+                        'foo' => 'foo messages (PT)',
+                    ),
+                    'validators' => array(
+                        'int' => 'integer (BR)',
+                        'str' => 'integer (PT)',
+                    ),
+                ),
+            ),
+        );
     }
 }
 
